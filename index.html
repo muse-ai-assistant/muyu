@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>电子木鱼 · 赛博积功德</title>
+<meta name="description" content="电子木鱼，敲一下功德+1。赛博修行，离线可用。">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#14100c">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,"PingFang SC","Noto Serif SC","Microsoft YaHei",serif;
+background:radial-gradient(120% 90% at 50% 0%,#241b12 0%,#14100c 55%,#0b0806 100%);
+color:#e8dcc8;min-height:100vh;overflow:hidden;user-select:none;-webkit-user-select:none}
+.wrap{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:18px 16px 30px;position:relative}
+header{text-align:center;padding:14px 0 4px}
+header h1{font-size:1.5rem;letter-spacing:.35em;font-weight:600;color:#f0e2c4}
+header p{font-size:.72rem;color:#8a7a5f;letter-spacing:.25em;margin-top:8px}
+.stats{display:flex;gap:10px;margin:16px 0 6px;width:100%;justify-content:center}
+.stat{flex:1;max-width:150px;background:rgba(255,235,190,.05);border:1px solid rgba(210,170,110,.22);
+border-radius:12px;padding:10px 6px;text-align:center}
+.stat .v{font-size:1.35rem;font-weight:700;color:#f5c76a;font-variant-numeric:tabular-nums}
+.stat .k{font-size:.68rem;color:#8a7a5f;letter-spacing:.15em;margin-top:4px}
+.stage{position:relative;flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:340px;cursor:pointer}
+#fish{width:min(72vw,300px);transition:transform .07s ease-out;filter:drop-shadow(0 18px 30px rgba(0,0,0,.55))}
+#fish.hit{transform:scale(.9)}
+.float{position:absolute;font-size:1.25rem;font-weight:700;color:#ffd97a;pointer-events:none;
+text-shadow:0 0 12px rgba(255,200,90,.7);animation:rise 1s ease-out forwards;white-space:nowrap;z-index:5}
+@keyframes rise{0%{opacity:0;transform:translateY(6px) scale(.8)}15%{opacity:1;transform:translateY(0) scale(1.1)}
+100%{opacity:0;transform:translateY(-90px) scale(1)}}
+.combo{position:absolute;top:8%;font-size:.85rem;color:#c9a86a;letter-spacing:.2em;opacity:0;transition:opacity .2s}
+.combo.on{opacity:1}
+.controls{display:flex;gap:10px;margin-top:8px}
+.btn{border:1px solid rgba(210,170,110,.3);background:rgba(255,235,190,.06);color:#d8c49a;
+border-radius:20px;padding:8px 20px;font-size:.8rem;cursor:pointer;letter-spacing:.1em}
+.btn:active{background:rgba(255,235,190,.14)}
+.hint{font-size:.7rem;color:#6b5d45;margin-top:14px;letter-spacing:.15em}
+footer{font-size:.65rem;color:#57492f;margin-top:10px;letter-spacing:.2em}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>電子木魚</h1><p>敲 一 下 · 功 德 + 1</p></header>
+<div class="stats">
+<div class="stat"><div class="v" id="s-total">0</div><div class="k">总功德</div></div>
+<div class="stat"><div class="v" id="s-today">0</div><div class="k">今日</div></div>
+<div class="stat"><div class="v" id="s-combo">0</div><div class="k">连击</div></div>
+</div>
+<div class="stage" id="stage">
+<div class="combo" id="combo"></div>
+<svg id="fish" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<radialGradient id="wood" cx="42%" cy="35%" r="75%">
+<stop offset="0%" stop-color="#a0662f"/><stop offset="55%" stop-color="#7d4d22"/><stop offset="100%" stop-color="#4e2f14"/>
+</radialGradient>
+<radialGradient id="hole" cx="50%" cy="50%" r="60%">
+<stop offset="0%" stop-color="#120b05"/><stop offset="100%" stop-color="#2a1a0c"/>
+</radialGradient>
+</defs>
+<ellipse cx="100" cy="88" rx="82" ry="62" fill="url(#wood)"/>
+<ellipse cx="100" cy="88" rx="82" ry="62" fill="none" stroke="#2e1c0c" stroke-width="4"/>
+<ellipse cx="100" cy="82" rx="52" ry="38" fill="url(#hole)"/>
+<rect x="94" y="46" width="12" height="72" rx="6" fill="#0d0703"/>
+<circle cx="100" cy="46" r="7" fill="#0d0703"/>
+<path d="M40 60 Q70 40 100 44" stroke="#c08b4d" stroke-width="3" fill="none" opacity=".55" stroke-linecap="round"/>
+<path d="M36 78 Q60 66 92 66" stroke="#c08b4d" stroke-width="2.5" fill="none" opacity=".4" stroke-linecap="round"/>
+<circle cx="152" cy="120" r="5" fill="#c08b4d" opacity=".7"/>
+<circle cx="162" cy="110" r="3.5" fill="#c08b4d" opacity=".5"/>
+</svg>
+</div>
+<div class="controls">
+<button class="btn" id="mute">🔔 声音开</button>
+<button class="btn" id="reset">🧹 清零今日</button>
+</div>
+<p class="hint">点击木鱼 或 按空格 敲击</p>
+<footer>功 德 无 量 · 离 线 可 用</footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const store=(()=>{try{return JSON.parse(localStorage.getItem('muyu')||'{}')}catch(e){return{}}})();
+const today=new Date().toISOString().slice(0,10);
+let total=store.total||0, dayCount=(store.date===today)?(store.today||0):0, combo=0, lastHit=0, muted=store.muted||false;
+
+function save(){try{localStorage.setItem('muyu',JSON.stringify({total,date:today,today:dayCount,muted}))}catch(e){}}
+function render(){
+  $('s-total').textContent=total.toLocaleString();
+  $('s-today').textContent=dayCount.toLocaleString();
+  $('s-combo').textContent=combo;
+  const c=$('combo');
+  if(combo>=5){c.textContent=`${combo} 连击 · 功德无量`;c.classList.add('on')}else c.classList.remove('on');
+  $('mute').textContent=muted?'🔕 声音关':'🔔 声音开';
+}
+
+// —— 木鱼音效：衰减正弦"笃" + 噪声敲击感 ——
+let AC=null;
+function tok(){
+  if(muted)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended')AC.resume();
+    const t=AC.currentTime;
+    // 主体：快速衰减的低频正弦
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='sine';o.frequency.setValueAtTime(620,t);o.frequency.exponentialRampToValueAtTime(180,t+.09);
+    g.gain.setValueAtTime(.9,t);g.gain.exponentialRampToValueAtTime(.001,t+.22);
+    o.connect(g).connect(AC.destination);o.start(t);o.stop(t+.25);
+    // 敲击噪声
+    const len=AC.sampleRate*.05,b=AC.createBuffer(1,len,AC.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);
+    const n=AC.createBufferSource(),ng=AC.createGain(),f=AC.createBiquadFilter();
+    n.buffer=b;f.type='bandpass';f.frequency.value=2400;f.Q.value=1.2;
+    ng.gain.setValueAtTime(.35,t);ng.gain.exponentialRampToValueAtTime(.001,t+.06);
+    n.connect(f).connect(ng).connect(AC.destination);n.start(t);
+  }catch(e){}
+}
+
+function hit(x,y){
+  const now=Date.now();
+  combo=(now-lastHit<1500)?combo+1:1;lastHit=now;
+  total++;dayCount++;save();render();tok();
+  const fish=$('fish');
+  fish.classList.add('hit');setTimeout(()=>fish.classList.remove('hit'),80);
+  const s=document.createElement('span');
+  s.className='float';s.textContent='功德+1';
+  const st=$('stage').getBoundingClientRect();
+  s.style.left=(x-st.left+(Math.random()*70-35))+'px';
+  s.style.top=(y-st.top-14)+'px';
+  $('stage').appendChild(s);setTimeout(()=>s.remove(),1000);
+  if(combo>0&&combo%50===0){
+    const big=document.createElement('span');
+    big.className='float';big.style.fontSize='1.7rem';big.style.color='#ffe9a8';
+    big.textContent=`🎉 ${combo}连击！`;
+    big.style.left=(st.width/2-60)+'px';big.style.top='30%';
+    $('stage').appendChild(big);setTimeout(()=>big.remove(),1200);
+  }
+}
+
+$('stage').addEventListener('pointerdown',e=>hit(e.clientX,e.clientY));
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&!e.repeat){e.preventDefault();const r=$('fish').getBoundingClientRect();hit(r.left+r.width/2,r.top+r.height/3)}
+});
+$('mute').onclick=e=>{e.stopPropagation();muted=!muted;save();render();if(!muted)tok()};
+$('reset').onclick=e=>{e.stopPropagation();if(confirm('清零今日敲击数?')){dayCount=0;save();render()}};
+
+render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
